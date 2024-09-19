@@ -20,53 +20,85 @@ contract PoolTest is Test {
         pool = new Pool(DURATION, GOAL);
     }
 
+    // Fonction de test pour vérifier si le contrat est déployé correctement
     function test_ContractIsDeployedSuccefully() public {
+        // Récupère l'adresse du propriétaire du contrat
         address _owner = pool.owner();
+        // Vérifie que l'adresse du propriétaire correspond à celle attendue
         assertEq(owner, _owner);
+        // Récupère la date de fin de la collecte
         uint256 _end = pool.end();
+        // Vérifie que la date de fin correspond à la durée prévue
         assertEq(block.timestamp + DURATION, _end);
+        // Récupère l'objectif de la collecte
         uint256 _goal = pool.goal();
+        // Vérifie que l'objectif correspond à celui défini
         assertEq(GOAL, _goal);
     }
 
-    // Contribute
+    // Fonction de test pour la contribution
+    // Teste le cas où la contribution est faite après la fin de la collecte
     function test_RevertWhen_EndIsReached() public {
+        // Avance le temps au-delà de la fin de la collecte
         vm.warp(pool.end() + 3600);
 
+        // Prépare le sélecteur pour l'erreur attendue
         bytes4 selector = bytes4(keccak256("CollectIsFinished()"));
+        // Configure l'attente d'un revert avec le sélecteur spécifié
         vm.expectRevert(abi.encodeWithSelector(selector));
 
+        // Simule l'action de l'utilisateur 1
         vm.prank(user1);
+        // Attribue 1 ether à l'utilisateur 1
         vm.deal(user1, 1 ether);
+        // Tente de contribuer, ce qui devrait échouer
         pool.contribute{value: 1 ether}();
     }
 
+    // Teste le cas où la contribution est faite sans fonds suffisants
     function test_RevertWhen_NotEnoughFunds() public {
+        // Prépare le sélecteur pour l'erreur attendue
         bytes4 selector = bytes4(keccak256("NotEnoughFunds()"));
+        // Configure l'attente d'un revert avec le sélecteur spécifié
         vm.expectRevert(abi.encodeWithSelector(selector));
 
+        // Simule l'action de l'utilisateur 1
         vm.prank(user1);
+        // Tente de contribuer sans fonds, ce qui devrait échouer
         pool.contribute();
     }
 
+    // Teste une contribution réussie et vérifie l'émission de l'événement
     function test_ExpecEmit_SuccessfulContribute(uint96 _amount) public {
+        // Suppose que le montant est supérieur à zéro
         vm.assume(_amount > 0);
+        // Configure l'attente de l'émission d'un événement spécifique
         vm.expectEmit(true, false, false, true);
+        // Définit l'événement attendu
         emit Pool.Contribut(address(user1), _amount);
 
+        // Simule l'action de l'utilisateur 1
         vm.prank(user1);
+        // Attribue le montant spécifié à l'utilisateur 1
         vm.deal(user1, _amount);
+        // Effectue la contribution
         pool.contribute{value: _amount}();
     }
 
     function test_UserIsInMapping_AfterContribution() public {
+        // Définir le montant de la contribution à 1 ether
         uint256 _amount = 1 ether;
 
+        // Simuler l'adresse de l'utilisateur 1 comme expéditeur
         vm.prank(user1);
+        // Attribuer le montant _amount à l'utilisateur 1
         vm.deal(user1, _amount);
+        // Effectuer une contribution au pool avec le montant _amount
         pool.contribute{value: _amount}();
 
+        // Récupérer la contribution de l'utilisateur 1 depuis le mapping
         uint256 userContribution = pool.contributions(user1);
+        // Vérifier que la contribution enregistrée correspond au montant envoyé
         assertEq(
             userContribution,
             _amount,
@@ -199,6 +231,9 @@ contract PoolTest is Test {
         // Transférer la propriété du contrat Pool à ExternContract
         vm.prank(owner);
         pool.transferOwnership(address(externContract));
+
+        // S'assurer que l'objectif n'est pas atteint
+        assertLt(pool.totalCollected(), pool.goal());
 
         // Configurer l'attente d'un revert avec le message spécifique
         bytes4 selector = bytes4(keccak256("FailedToSendEther()"));
