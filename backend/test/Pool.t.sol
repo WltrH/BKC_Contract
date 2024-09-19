@@ -4,7 +4,8 @@ pragma solidity ^0.8.23;
 import "forge-std/Test.sol";
 import {Pool} from "../src/Pool.sol";
 import {ExternContract} from "./ExternContract.sol";
-import {GasConsumer} from "./GasConsumer.sol";
+
+
 
 
 
@@ -218,6 +219,7 @@ contract PoolTest is Test {
         vm.prank(user1);
         pool.refund();
     }
+
 
     
 }
