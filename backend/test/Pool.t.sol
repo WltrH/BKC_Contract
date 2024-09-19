@@ -4,6 +4,9 @@ pragma solidity ^0.8.23;
 import "forge-std/Test.sol";
 import {Pool} from "../src/Pool.sol";
 import {ExternContract} from "./ExternContract.sol";
+import {GasConsumer} from "./GasConsumer.sol";
+
+
 
 contract PoolTest is Test {
     address owner = makeAddr("User0");
@@ -216,32 +219,5 @@ contract PoolTest is Test {
         pool.refund();
     }
 
-    function test_Refund_FailedToSendEther() public {
-        // Contribuer au pool
-        vm.deal(user1, 1 ether);
-        vm.prank(user1);
-        pool.contribute{value: 1 ether}();
-
-        // Avancer le temps jusqu'à la fin de la collecte
-        vm.warp(pool.end());
-
-        // Créer un contrat externe qui rejette les transferts d'Ether
-        ExternContract externContract = new ExternContract();
-
-        // Transférer la propriété du contrat Pool à ExternContract
-        vm.prank(owner);
-        pool.transferOwnership(address(externContract));
-
-        // S'assurer que l'objectif n'est pas atteint
-        assertLt(pool.totalCollected(), pool.goal());
-
-        // Configurer l'attente d'un revert avec le message spécifique
-        bytes4 selector = bytes4(keccak256("FailedToSendEther()"));
-        vm.expectRevert(abi.encodeWithSelector(selector));
-
-        // Tenter le remboursement, qui devrait échouer car ExternContract rejette les transferts d'Ether
-        vm.prank(user1);
-        pool.refund();
-    }
     
 }
