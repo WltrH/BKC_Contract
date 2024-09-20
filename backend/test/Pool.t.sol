@@ -25,7 +25,7 @@ contract PoolTest is Test {
     }
 
     // Fonction de test pour vérifier si le contrat est déployé correctement
-    function test_ContractIsDeployedSuccefully() public {
+    function test_ContractIsDeployedSuccefully() public view {
         // Récupère l'adresse du propriétaire du contrat
         address _owner = pool.owner();
         // Vérifie que l'adresse du propriétaire correspond à celle attendue
