@@ -3,9 +3,6 @@ pragma solidity ^0.8.23;
 
 import "forge-std/Test.sol";
 import {Pool} from "../src/Pool.sol";
-import {ExternContract} from "./ExternContract.sol";
-
-
 
 
 
@@ -161,6 +158,55 @@ contract PoolTest is Test {
         pool.withdraw();
     }
 
+    //Teste de l'echec de l'envoi d'ether de la fonction withdraw
+    function test_RevertWhen_FailedToSendEther() public {
+        // Déployer un nouveau pool
+        pool = new Pool(DURATION, GOAL);
+
+        // Verser des ether au pool avec user1
+        vm.deal(user1, 5 ether);
+        vm.prank(user1);
+        pool.contribute{value: 5 ether}();
+
+        // Verser des ether au pool avec user2
+        vm.deal(user2, 6 ether);
+        vm.prank(user2);
+        pool.contribute{value: 6 ether}();
+
+        // Avancer le temps jusqu'à la fin de la collecte
+        vm.warp(pool.end()+1);
+
+        // Récupérer le sélecteur pour l'erreur attendue
+        bytes4 selector = bytes4(keccak256("FailedToSendEther()"));
+        vm.expectRevert(abi.encodeWithSelector(selector));
+
+        // Retirer les fonds
+        pool.withdraw();
+
+    }
+
+    // Teste du retrait des fonds de la fonction withdraw
+    function test_Withdraw_Success() public {
+        //Verser assez d'Ether pour que le goal soit atteint
+        // Verser des ether au pool avec user1
+        vm.deal(user1, 5 ether);
+        vm.prank(user1);
+        pool.contribute{value: 5 ether}();
+
+        // Verser des ether au pool avec user2
+        vm.deal(user2, 6 ether);
+        vm.prank(user2);
+        pool.contribute{value: 6 ether}();
+
+        // Avancer le temps jusqu'à la fin de la collecte
+        vm.warp(pool.end()+1);
+
+        //Retirer les fonds
+        vm.prank(owner);
+        pool.withdraw();
+
+    }
+        
     // Teste si la collecte n'est pas terminée en fonction du temps
     function test_Collect_IsNotFinished_Time() public {
         // Avancer le temps juste avant la fin
@@ -198,29 +244,6 @@ contract PoolTest is Test {
         vm.expectRevert(abi.encodeWithSelector(selector));
 
         vm.prank(owner);
-        pool.withdraw();
-    }
-
-    function test_Failed_ToSendEther() public {
-        // Contribuer au pool avec le montant exact de l'objectif
-        vm.deal(user1, pool.goal());
-        vm.prank(user1);
-        pool.contribute{value: pool.goal()}();
-
-        // Avancer le temps jusqu'à la fin de la collecte
-        vm.warp(pool.end());
-
-        // Créer un contrat malveillant qui rejette les transferts d'Ether
-        address externContract = address(new ExternContract());
-
-        // Transférer la propriété du pool au contrat malveillant
-        vm.prank(owner);
-        pool.transferOwnership(externContract);
-
-        // Tenter de retirer les fonds
-        bytes4 selector = bytes4(keccak256("FailedToSendEther()"));
-        vm.expectRevert(abi.encodeWithSelector(selector));
-        vm.prank(externContract);
         pool.withdraw();
     }
 
