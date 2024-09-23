@@ -88,7 +88,7 @@ contract PoolTest is Test {
         // Effectue la contribution
         pool.contribute{value: _amount}();
     }
-
+    // Teste si l'utilisateur est dans le mapping après une contribution
     function test_UserIsInMapping_AfterContribution() public {
         // Définir le montant de la contribution à 1 ether
         uint256 _amount = 1 ether;
@@ -110,23 +110,77 @@ contract PoolTest is Test {
         );
     }
 
+    // Teste si le propriétaire du contrat est le propriétaire du pool
+    function test_RevertWhen_IsNotTheOwner() public {
+
+        // Récupérer le sélecteur pour l'erreur attendue
+        // L'erreur attendue est OwnableUnauthorizedAccount d'openzeppelin
+        bytes4 selector = bytes4(keccak256("OwnableUnauthorizedAccount(address)"));
+        vm.expectRevert(abi.encodeWithSelector(selector, user1));
+
+        // Tenter de retirer les fonds avec l'adresse user1
+        vm.prank(user1);
+        pool.withdraw();
+   
+    }
+
+    // Teste de la fonction withdraw si le temps n'est pas atteint
+    function test_RevertWhen_CollectIsNotFinished() public {
+        // Avancer le temps juste avant la fin
+        vm.warp(pool.end() - 1);
+
+        // Contribuer au pool
+        vm.prank(user1); 
+        vm.deal(user1, 1 ether);
+        pool.contribute{value: 1 ether}();
+
+        // Récupérer le sélecteur pour l'erreur attendue
+        bytes4 selector = bytes4(keccak256("CollectIsNotFinished()"));
+        vm.expectRevert(abi.encodeWithSelector(selector));
+
+        // Tenter de retirer les fonds
+        vm.prank(owner);
+        pool.withdraw();
+
+    }
+
+    // Teste de la fonction withdraw si l'objectif n'est pas atteint
+    function test_RevertWhen_CollectIsNoReached(uint256 _amount) public {
+        // Avancer le temps jusqu'à la fin de la collecte
+        vm.warp(pool.end());
+
+        // Assurer que le montant est inférieur à l'objectif
+        vm.assume(_amount > 0 && _amount < pool.goal());
+
+        // Récupérer le sélecteur pour l'erreur attendue
+        bytes4 selector = bytes4(keccak256("CollectIsNotFinished()"));
+        vm.expectRevert(abi.encodeWithSelector(selector));
+
+        // Tenter de retirer les fonds
+        vm.prank(owner);
+        pool.withdraw();
+    }
+
+    // Teste si la collecte n'est pas terminée en fonction du temps
     function test_Collect_IsNotFinished_Time() public {
         // Avancer le temps juste avant la fin
         vm.warp(pool.end() - 1);
 
         // Contribuer au pool
-        vm.prank(user1);
+        vm.prank(user1); 
         vm.deal(user1, 1 ether);
         pool.contribute{value: 1 ether}();
 
-        // Tenter de retirer les fonds
+        // Récupérer le sélecteur pour l'erreur attendue
         bytes4 selector = bytes4(keccak256("CollectIsNotFinished()"));
         vm.expectRevert(abi.encodeWithSelector(selector));
 
+        // Tenter de retirer les fonds  
         vm.prank(owner);
         pool.withdraw();
     }
 
+    // Teste si la collecte n'est pas terminée en fonction des fonds
     function test_Collect_IsNotFinished_Funds(uint256 _amount) public {
         // Assurer que le montant est inférieur à l'objectif
         vm.assume(_amount > 0 && _amount < pool.goal());
