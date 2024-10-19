@@ -21,225 +21,225 @@ contract PoolTest is Test {
         pool = new Pool(DURATION, GOAL);
     }
 
-    // Fonction de test pour vérifier si le contrat est déployé correctement
+    // Test function to check if the contract is deployed correctly
     function test_ContractIsDeployedSuccefully() public view {
-        // Récupère l'adresse du propriétaire du contrat
+        // Retrieve the contract owner's address
         address _owner = pool.owner();
-        // Vérifie que l'adresse du propriétaire correspond à celle attendue
+        // Check that the owner's address matches the expected one
         assertEq(owner, _owner);
-        // Récupère la date de fin de la collecte
+        // Retrieve the end date of the collection
         uint256 _end = pool.end();
-        // Vérifie que la date de fin correspond à la durée prévue
+        // Check that the end date matches the expected duration
         assertEq(block.timestamp + DURATION, _end);
-        // Récupère l'objectif de la collecte
+        // Retrieve the collection goal
         uint256 _goal = pool.goal();
-        // Vérifie que l'objectif correspond à celui défini
+        // Check that the goal matches the defined one
         assertEq(GOAL, _goal);
     }
 
-    // Fonction de test pour la contribution
-    // Teste le cas où la contribution est faite après la fin de la collecte
+    // Test function for contribution
+    // Test the case where the contribution is made after the end of the collection
     function test_RevertWhen_EndIsReached() public {
-        // Avance le temps au-delà de la fin de la collecte
+        // Advance time beyond the end of the collection
         vm.warp(pool.end() + 3600);
 
-        // Prépare le sélecteur pour l'erreur attendue
+        // Prepare the selector for the expected error
         bytes4 selector = bytes4(keccak256("CollectIsFinished()"));
-        // Configure l'attente d'un revert avec le sélecteur spécifié
+        // Set up the expectation of a revert with the specified selector
         vm.expectRevert(abi.encodeWithSelector(selector));
 
-        // Simule l'action de l'utilisateur 1
+        // Simulate the action of user1
         vm.prank(user1);
-        // Attribue 1 ether à l'utilisateur 1
+        // Assign 1 ether to user1
         vm.deal(user1, 1 ether);
-        // Tente de contribuer, ce qui devrait échouer
+        // Attempt to contribute, which should fail
         pool.contribute{value: 1 ether}();
     }
 
-    // Teste le cas où la contribution est faite sans fonds suffisants
+    // Test the case where the contribution is made without sufficient funds
     function test_RevertWhen_NotEnoughFunds() public {
-        // Prépare le sélecteur pour l'erreur attendue
+        // Prepare the selector for the expected error
         bytes4 selector = bytes4(keccak256("NotEnoughFunds()"));
-        // Configure l'attente d'un revert avec le sélecteur spécifié
+        // Set up the expectation of a revert with the specified selector
         vm.expectRevert(abi.encodeWithSelector(selector));
 
-        // Simule l'action de l'utilisateur 1
+        // Simulate the action of user1
         vm.prank(user1);
-        // Tente de contribuer sans fonds, ce qui devrait échouer
+        // Attempt to contribute without funds, which should fail
         pool.contribute();
     }
 
-    // Teste une contribution réussie et vérifie l'émission de l'événement
+    // Test a successful contribution and verify the emission of the event
     function test_ExpecEmit_SuccessfulContribute(uint96 _amount) public {
-        // Suppose que le montant est supérieur à zéro
+        // Assume that the amount is greater than zero
         vm.assume(_amount > 0);
-        // Configure l'attente de l'émission d'un événement spécifique
+        // Set up the expectation of the emission of a specific event
         vm.expectEmit(true, false, false, true);
-        // Définit l'événement attendu
+        // Define the expected event
         emit Pool.Contribut(address(user1), _amount);
 
-        // Simule l'action de l'utilisateur 1
+        // Simulate the action of user1
         vm.prank(user1);
-        // Attribue le montant spécifié à l'utilisateur 1
+        // Assign the specified amount to user1
         vm.deal(user1, _amount);
-        // Effectue la contribution
+        // Make the contribution
         pool.contribute{value: _amount}();
     }
-    // Teste si l'utilisateur est dans le mapping après une contribution
+    // Test if the user is in the mapping after a contribution
     function test_UserIsInMapping_AfterContribution() public {
-        // Définir le montant de la contribution à 1 ether
+        // Define the contribution amount to 1 ether
         uint256 _amount = 1 ether;
 
-        // Simuler l'adresse de l'utilisateur 1 comme expéditeur
+        // Simulate the address of user1 as the sender
         vm.prank(user1);
-        // Attribuer le montant _amount à l'utilisateur 1
+        // Assign the amount _amount to user1
         vm.deal(user1, _amount);
-        // Effectuer une contribution au pool avec le montant _amount
+        // Make a contribution to the pool with the amount _amount
         pool.contribute{value: _amount}();
 
-        // Récupérer la contribution de l'utilisateur 1 depuis le mapping
+        // Retrieve the contribution of user1 from the mapping
         uint256 userContribution = pool.contributions(user1);
-        // Vérifier que la contribution enregistrée correspond au montant envoyé
+        // Check that the recorded contribution matches the sent amount
         assertEq(
             userContribution,
             _amount,
-            "La contribution de l'utilisateur n'est pas correctement enregistree dans le mapping"
+            "The user's contribution is not correctly recorded in the mapping"
         );
     }
 
-    // Teste si le propriétaire du contrat est le propriétaire du pool
+    // Test if the contract owner is the owner of the pool
     function test_RevertWhen_IsNotTheOwner() public {
 
-        // Récupérer le sélecteur pour l'erreur attendue
-        // L'erreur attendue est OwnableUnauthorizedAccount d'openzeppelin
+        // Retrieve the selector for the expected error
+        // The expected error is OwnableUnauthorizedAccount from openzeppelin
         bytes4 selector = bytes4(keccak256("OwnableUnauthorizedAccount(address)"));
         vm.expectRevert(abi.encodeWithSelector(selector, user1));
 
-        // Tenter de retirer les fonds avec l'adresse user1
+        // Attempt to withdraw funds with the address user1
         vm.prank(user1);
         pool.withdraw();
    
     }
 
-    // Teste de la fonction withdraw si le temps n'est pas atteint
+    // Test the withdraw function if the time is not reached
     function test_RevertWhen_CollectIsNotFinished() public {
-        // Avancer le temps juste avant la fin
+        // Advance time just before the end
         vm.warp(pool.end() - 1);
 
-        // Contribuer au pool
+        // Contribute to the pool
         vm.prank(user1); 
         vm.deal(user1, 1 ether);
         pool.contribute{value: 1 ether}();
 
-        // Récupérer le sélecteur pour l'erreur attendue
+        // Retrieve the selector for the expected error
         bytes4 selector = bytes4(keccak256("CollectIsNotFinished()"));
         vm.expectRevert(abi.encodeWithSelector(selector));
 
-        // Tenter de retirer les fonds
+        // Attempt to withdraw funds
         vm.prank(owner);
         pool.withdraw();
 
     }
 
-    // Teste de la fonction withdraw si l'objectif n'est pas atteint
+    // Test the withdraw function if the goal is not reached
     function test_RevertWhen_CollectIsNoReached(uint256 _amount) public {
-        // Avancer le temps jusqu'à la fin de la collecte
+        // Advance time to the end of the collection
         vm.warp(pool.end());
 
-        // Assurer que le montant est inférieur à l'objectif
+        // Ensure that the amount is less than the goal
         vm.assume(_amount > 0 && _amount < pool.goal());
 
-        // Récupérer le sélecteur pour l'erreur attendue
+        // Retrieve the selector for the expected error
         bytes4 selector = bytes4(keccak256("CollectIsNotFinished()"));
         vm.expectRevert(abi.encodeWithSelector(selector));
 
-        // Tenter de retirer les fonds
+        // Attempt to withdraw funds
         vm.prank(owner);
         pool.withdraw();
     }
 
-    //Teste de l'echec de l'envoi d'ether de la fonction withdraw
+    // Test the failure of sending ether in the withdraw function
     function test_RevertWhen_FailedToSendEther() public {
-        // Déployer un nouveau pool
+        // Deploy a new pool
         pool = new Pool(DURATION, GOAL);
 
-        // Verser des ether au pool avec user1
+        // Contribute ether to the pool with user1
         vm.deal(user1, 5 ether);
         vm.prank(user1);
         pool.contribute{value: 5 ether}();
 
-        // Verser des ether au pool avec user2
+        // Contribute ether to the pool with user2
         vm.deal(user2, 6 ether);
         vm.prank(user2);
         pool.contribute{value: 6 ether}();
 
-        // Avancer le temps jusqu'à la fin de la collecte
+        // Advance time to the end of the collection
         vm.warp(pool.end()+1);
 
-        // Récupérer le sélecteur pour l'erreur attendue
+        // Retrieve the selector for the expected error
         bytes4 selector = bytes4(keccak256("FailedToSendEther()"));
         vm.expectRevert(abi.encodeWithSelector(selector));
 
-        // Retirer les fonds
+        // Withdraw funds
         pool.withdraw();
 
     }
 
-    // Teste du retrait des fonds de la fonction withdraw
+    // Test the withdrawal of funds from the withdraw function
     function test_Withdraw_Success() public {
-        //Verser assez d'Ether pour que le goal soit atteint
-        // Verser des ether au pool avec user1
+        // Contribute enough Ether to reach the goal
+        // Contribute ether to the pool with user1
         vm.deal(user1, 5 ether);
         vm.prank(user1);
         pool.contribute{value: 5 ether}();
 
-        // Verser des ether au pool avec user2
+        // Contribute ether to the pool with user2
         vm.deal(user2, 6 ether);
         vm.prank(user2);
         pool.contribute{value: 6 ether}();
 
-        // Avancer le temps jusqu'à la fin de la collecte
+        // Advance time to the end of the collection
         vm.warp(pool.end()+1);
 
-        //Retirer les fonds
+        // Withdraw funds
         vm.prank(owner);
         pool.withdraw();
 
     }
         
-    // Teste si la collecte n'est pas terminée en fonction du temps
+    // Test if the collection is not finished based on time
     function test_Collect_IsNotFinished_Time() public {
-        // Avancer le temps juste avant la fin
+        // Advance time just before the end
         vm.warp(pool.end() - 1);
 
-        // Contribuer au pool
+        // Contribute to the pool
         vm.prank(user1); 
         vm.deal(user1, 1 ether);
         pool.contribute{value: 1 ether}();
 
-        // Récupérer le sélecteur pour l'erreur attendue
+        // Retrieve the selector for the expected error
         bytes4 selector = bytes4(keccak256("CollectIsNotFinished()"));
         vm.expectRevert(abi.encodeWithSelector(selector));
 
-        // Tenter de retirer les fonds  
+        // Attempt to withdraw funds  
         vm.prank(owner);
         pool.withdraw();
     }
 
-    // Teste si la collecte n'est pas terminée en fonction des fonds
+    // Test if the collection is not finished based on funds
     function test_Collect_IsNotFinished_Funds(uint256 _amount) public {
-        // Assurer que le montant est inférieur à l'objectif
+        // Ensure that the amount is less than the goal
         vm.assume(_amount > 0 && _amount < pool.goal());
 
-        // Contribuer au pool
+        // Contribute to the pool
         vm.prank(user1);
         vm.deal(user1, _amount);
         pool.contribute{value: _amount}();
 
-        // Avancer le temps jusqu'à la fin de la collecte
+        // Advance time to the end of the collection
         vm.warp(pool.end());
 
-        // Tenter de retirer les fonds
+        // Attempt to withdraw funds
         bytes4 selector = bytes4(keccak256("CollectIsNotFinished()"));
         vm.expectRevert(abi.encodeWithSelector(selector));
 
@@ -248,36 +248,36 @@ contract PoolTest is Test {
     }
 
     function test_Refund_CollectIsNotFiniched() public {
-        // Avancer le temps juste avant la fin
+        // Advance time just before the end
         vm.warp(pool.end() - 1);
 
-        // Contribuer au pool
+        // Contribute to the pool
         vm.prank(user1);
         vm.deal(user1, 1 ether);
         pool.contribute{value: 1 ether}();
 
-        // Tenter de se faire refund les fonds
+        // Attempt to refund the funds
         bytes4 selector = bytes4(keccak256("CollectIsNotFinished()"));
         vm.expectRevert(abi.encodeWithSelector(selector));
 
-        // Tenter de se faire refund
+        // Attempt to refund
         vm.prank(user1);
         pool.refund();
     }
 
     function test_Refund_GoalAlreadyReached(uint256 _amount) public {
-        // Assurer que le montant est supérieur à l'objectif
+        // Ensure that the amount is greater than the goal
         vm.assume(_amount > pool.goal());
 
-        // Contribuer au pool avec le montant _amount
+        // Contribute to the pool with the amount _amount
         vm.deal(user1, _amount);
         vm.prank(user1);
         pool.contribute{value: _amount}();
 
-        // Avancer le temps jusqu'à la fin de la collecte
+        // Advance time to the end of the collection
         vm.warp(pool.end());
 
-        // Tenter le refund alors que l'objectif est déjà atteint
+        // Attempt to refund when the goal is already reached
         bytes4 selector = bytes4(keccak256("GoalAlreadyReached()"));
         vm.expectRevert(abi.encodeWithSelector(selector));
 
@@ -286,10 +286,10 @@ contract PoolTest is Test {
     }
 
     function test_Refund_NoContribution() public {
-        // Avancer le temps jusqu'à la fin de la collecte
+        // Advance time to the end of the collection
         vm.warp(pool.end());
 
-        // Tenter de se faire rembourser sans avoir contribué
+        // Attempt to refund without having contributed
         bytes4 selector = bytes4(keccak256("NoContribution()"));
         vm.expectRevert(abi.encodeWithSelector(selector));
 

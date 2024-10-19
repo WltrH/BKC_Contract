@@ -15,6 +15,7 @@ contract MyScript is Script {
         uint256 goal = 10 ether;
         uint256 end = 4 weeks;
 
+
         // Deployement du contrat Pool
         Pool pool = new Pool(goal, end);
         console.log("Pool deployed at address:", address(pool));

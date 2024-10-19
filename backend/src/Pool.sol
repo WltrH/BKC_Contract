@@ -21,69 +21,69 @@ contract Pool is Ownable {
 
     event Contribut(address indexed contributor, uint256 amount);
 
-    // Constructeur du contrat, initialise la durée et l'objectif de la collecte
+    // Constructor of the contract, initializes the duration and the goal of the collection
     constructor(uint256 _duration, uint256 _goal) Ownable(msg.sender) {
-        // Définit la date de fin de la collecte
+        // Sets the end date of the collection
         end = block.timestamp + _duration;
-        // Définit l'objectif de la collecte
+        // Sets the goal of the collection
         goal = _goal;
     }
-    //@notice Permet de contribuer à la collecte
+    //@notice Allows to contribute to the collection
     function contribute() external payable {
-        // Vérifie si la collecte n'est pas terminée
+        // Checks if the collection is not finished
         if (block.timestamp >= end) {
             revert CollectIsFinished();
         }
-        // Vérifie si le montant envoyé est supérieur à zéro
+        // Checks if the sent amount is greater than zero
         if (msg.value == 0) {
             revert NotEnoughFunds();
         }
-        // Ajoute la contribution de l'expéditeur
+        // Adds the sender's contribution
         contributions[msg.sender] += msg.value;
-        // Met à jour le total collecté
+        // Updates the total collected
         totalCollected += msg.value;
 
-        // Émet un événement pour la contribution
+        // Emits an event for the contribution
         emit Contribut(msg.sender, msg.value);
     }
-    //@notice Permet au propriétaire de retirer le montant de la collecte
+    //@notice Allows the owner to withdraw the amount of the collection
     function withdraw() external onlyOwner {
-        // Vérifie si la collecte est terminée et l'objectif atteint
+        // Checks if the collection is finished and the goal is reached
         if (block.timestamp < end || totalCollected < goal) {
             revert CollectIsNotFinished();
         }
-        // Tente d'envoyer le solde du contrat au propriétaire
+        // Attempts to send the contract balance to the owner
         (bool sent, ) = msg.sender.call{value: address(this).balance}("");
-        // Vérifie si l'envoi a réussi
+        // Checks if the send was successful
         if (!sent) {
             revert FailedToSendEther();
         }
     }
 
-    //@notice Permet de rembourser le montant à l'expéditeur
+    //@notice Allows to refund the amount to the sender
     function refund() external {
-        // Vérifie si la collecte est terminée
+        // Checks if the collection is finished
         if (block.timestamp < end) {
             revert CollectIsNotFinished();
         }
-        // Vérifie si l'objectif n'a pas été atteint
+        // Checks if the goal has not been reached
         if (totalCollected >= goal) {
             revert GoalAlreadyReached();
         }
-        // Vérifie si l'expéditeur a une contribution
+        // Checks if the sender has a contribution
         if (contributions[msg.sender] == 0) {
             revert NoContribution();
         }
 
-        // Récupère le montant de la contribution
+        // Retrieves the amount of the contribution
         uint256 amount = contributions[msg.sender];
-        // Réinitialise la contribution de l'expéditeur
+        // Resets the sender's contribution
         contributions[msg.sender] = 0;
-        // Soustrait le montant du total collecté
+        // Subtracts the amount from the total collected
         totalCollected -= amount;
-        // Tente d'envoyer le remboursement à l'expéditeur
+        // Attempts to send the refund to the sender
         (bool sent, ) = msg.sender.call{value: amount}("");
-        // Vérifie si l'envoi a réussi
+        // Checks if the send was successful
         if (!sent) {
             revert FailedToSendEther();
         }
